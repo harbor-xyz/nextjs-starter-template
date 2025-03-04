@@ -1,3 +1,8 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": "next/core-web-vitals",
+  "root": true,
+  "ignorePatterns": ["node_modules"],
+  "parserOptions": {
+    "warnOnUnsupportedTypeScriptVersion": false
+  }
 }
