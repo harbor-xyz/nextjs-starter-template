@@ -6,6 +6,9 @@ import {
 // import all vercel ai providers
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 // next we have to get the correct API keys for each provider
 // we should do this using a secrets manager
