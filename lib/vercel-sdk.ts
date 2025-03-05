@@ -40,6 +40,8 @@ export interface GenerateTextOptions<T extends Provider> {
   provider: Provider;
   model: ModelName;
   prompt: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 export interface GenerateImageOptions<T extends Provider> {
@@ -110,6 +112,8 @@ export async function genericGenerateText<T extends Provider>({
   provider,
   model,
   prompt,
+  temperature = 0.5,
+  maxTokens = 1000,
 }: GenerateTextOptions<T>): Promise<string> {
   // Check if model is supported for the provider
   if (
@@ -141,6 +145,8 @@ export async function genericGenerateText<T extends Provider>({
     const { text } = await generateText({
       model: providerInstance(model),
       prompt: prompt,
+      temperature,
+      maxTokens,
     });
 
     return text;
