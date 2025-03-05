@@ -4,22 +4,8 @@ import {
   Experimental_GeneratedImage,
 } from "ai";
 // import all vercel ai providers
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import dotenv from "dotenv";
-
-// just to make sure this is working
-console.log("KEYS");
-console.log(process.env.VITE_OPENAI_API_KEY);
-console.log(process.env.VITE_ANTHROPIC_API_KEY);
-
-const openai = createOpenAI({
-  apiKey: process.env.VITE_OPENAI_API_KEY,
-});
-
-const anthropic = createAnthropic({
-  apiKey: process.env.VITE_ANTHROPIC_API_KEY,
-});
+import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 
 // next we have to get the correct API keys for each provider
 // we should do this using a secrets manager
