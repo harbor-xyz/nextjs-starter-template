@@ -4,7 +4,7 @@ import {
   Experimental_GeneratedImage,
 } from "ai";
 // import all vercel ai providers
-import { createOpenAI, openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import dotenv from "dotenv";
 
