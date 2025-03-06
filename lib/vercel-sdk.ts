@@ -16,17 +16,11 @@ console.log(process.env);
 dotenv.config();
 
 console.log("PROCESS ENV AFTER CONFIG");
-console.log(process.env);
-console.log(process.env.OPENAI_API_KEY);
-console.log(process.env.ANTHROPIC_API_KEY);
-const openAiKey = process.env.OPENAI_API_KEY;
-const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+const openAiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
 console.log("OPEN AI KEY");
 console.log(openAiKey);
-
-console.log("ANTHROPIC KEY");
-console.log(anthropicKey);
 
 const openai = createOpenAI({
   apiKey: openAiKey,
@@ -157,12 +151,15 @@ export async function genericGenerateText<T extends Provider>({
   }
 
   try {
+    console.log("MAKING GENERATE TEXT CALL");
     const { text } = await generateText({
       model: providerInstance(model),
       prompt: prompt,
       temperature,
       maxTokens,
     });
+    console.log("GETTING BACK TEXT");
+    console.log(text);
 
     return text;
   } catch (error) {
