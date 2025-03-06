@@ -5,9 +5,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
-  experimental: {
-    parallelRoutes: true,
-    prefetchRSC: true,
+  experimental: {    
     serverActions: true,
   },  
 };
