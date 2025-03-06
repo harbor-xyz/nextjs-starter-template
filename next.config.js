@@ -6,8 +6,10 @@ const nextConfig = {
   },
   images: { unoptimized: true },
   experimental: {
+    parallelRoutes: true,
+    prefetchRSC: true,
     serverActions: true,
-  },
+  },  
 };
 
 module.exports = nextConfig;
