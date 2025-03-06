@@ -8,7 +8,27 @@ import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 import dotenv from "dotenv";
 
+// what is dirname?
+console.log(__dirname);
+// what are the envs?
+console.log("PROCESS ENV BEFORE CONFIG");
+console.log(process.env);
+
 dotenv.config();
+
+console.log("PROCESS ENV AFTER CONFIG");
+console.log(process.env);
+
+const resolvedPath = path.resolve(__dirname, "..", ".env.local");
+
+console.log("RESOLVED PATH");
+
+console.log(resolvedPath);
+
+dotenv.config({ path: resolvedPath });
+
+console.log("PROCESS.ENV AFTER PATH RESOLUTION");
+console.log(process.env);
 
 // next we have to get the correct API keys for each provider
 // we should do this using a secrets manager
