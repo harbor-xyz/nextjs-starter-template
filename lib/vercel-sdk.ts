@@ -4,8 +4,8 @@ import {
   Experimental_GeneratedImage,
 } from "ai";
 // import all vercel ai providers
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenAI, openai } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import dotenv from "dotenv";
 
 // what is dirname?
@@ -19,16 +19,15 @@ dotenv.config();
 console.log("PROCESS ENV AFTER CONFIG");
 console.log(process.env);
 
-const resolvedPath = path.resolve(__dirname, "..", ".env.local");
+const openAiKey = process.env.OPENAI_API_KEY;
+const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
-console.log("RESOLVED PATH");
-
-console.log(resolvedPath);
-
-dotenv.config({ path: resolvedPath });
-
-console.log("PROCESS.ENV AFTER PATH RESOLUTION");
-console.log(process.env);
+const openai = createOpenAI({
+  apiKey: openAiKey,
+});
+const anthropic = createAnthropic({
+  apiKey: anthropicKey,
+});
 
 // next we have to get the correct API keys for each provider
 // we should do this using a secrets manager
