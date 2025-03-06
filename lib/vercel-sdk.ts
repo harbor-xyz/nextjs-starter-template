@@ -17,10 +17,10 @@ dotenv.config();
 
 console.log("PROCESS ENV AFTER CONFIG");
 console.log(process.env);
-console.log(process.env.NEXT_PUBLIC_OPENAI_API_KEY);
-console.log(process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY);
-const openAiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-const anthropicKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
+console.log(process.env.OPENAI_API_KEY);
+console.log(process.env.ANTHROPIC_API_KEY);
+const openAiKey = process.env.OPENAI_API_KEY;
+const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
 console.log("OPEN AI KEY");
 console.log(openAiKey);
@@ -53,13 +53,7 @@ export type ImageModelName = "dall-e-2" | "dall-e-3";
 
 export type ImageProvider = "openai";
 
-export type ModelName =
-  | "gpt-4o"
-  | "gpt-4o-mini"
-  | "gpt-4-turbo"
-  | "gpt-4"
-  | "claude-3-5-sonnet-20241022"
-  | "claude-3-5-haiku-20241022";
+export type ModelName = "gpt-4o" | "gpt-4o-mini" | "gpt-4-turbo" | "gpt-4";
 export interface GenerateTextOptions<T extends Provider> {
   provider: Provider;
   model: ModelName;
