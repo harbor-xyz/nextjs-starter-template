@@ -10,7 +10,7 @@ function getEnvVariable(key: string): string {
   return value
 }
 
-let stripe = null
+let stripe: Stripe | null = null
 try {
   const stripeSecretKey = getEnvVariable("STRIPE_SECRET_KEY")
   stripe = new Stripe(stripeSecretKey, {
