@@ -22,6 +22,12 @@ console.log(process.env);
 const openAiKey = process.env.OPENAI_API_KEY;
 const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
+console.log("OPEN AI KEY");
+console.log(openAiKey);
+
+console.log("ANTHROPIC KEY");
+console.log(anthropicKey);
+
 const openai = createOpenAI({
   apiKey: openAiKey,
 });
