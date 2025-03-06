@@ -5,7 +5,6 @@ import {
 } from "ai";
 // import all vercel ai providers
 import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import dotenv from "dotenv";
 
 // what is dirname?
@@ -32,9 +31,6 @@ console.log(anthropicKey);
 const openai = createOpenAI({
   apiKey: openAiKey,
 });
-const anthropic = createAnthropic({
-  apiKey: anthropicKey,
-});
 
 // next we have to get the correct API keys for each provider
 // we should do this using a secrets manager
@@ -49,10 +45,9 @@ export const SUPPORTED_IMAGE_SIZES_PER_MODEL = {
 // Define supported models for each provider
 export const SUPPORTED_TEXT_GENERATION_MODELS = {
   openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4"],
-  anthropic: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
 } as const;
 
-export type Provider = "openai" | "anthropic";
+export type Provider = "openai";
 
 export type ImageModelName = "dall-e-2" | "dall-e-3";
 
@@ -162,9 +157,6 @@ export async function genericGenerateText<T extends Provider>({
   switch (provider) {
     case "openai":
       providerInstance = openai;
-      break;
-    case "anthropic":
-      providerInstance = anthropic;
       break;
     default:
       throw new Error(`Unsupported provider: ${provider}`);
