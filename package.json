@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "test": "vitest",
-    "generate": "tsx scripts/generate.ts",
+    "generate": "ts-node --project scripts/tsconfig.json scripts/generate.ts",
     "check-links": "ts-node --project scripts/tsconfig.json scripts/check-links.ts"
   },
   "dependencies": {

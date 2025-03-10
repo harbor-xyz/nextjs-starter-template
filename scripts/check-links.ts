@@ -105,7 +105,8 @@ links.forEach(link => {
     isValid = true;
   } else {
     // Check dynamic routes
-    for (const route of availableRoutes) {
+    const routes = Array.from(availableRoutes);
+    for (const route of routes) {
       if (route.includes(':') && routeMatches(route, linkPath)) {
         isValid = true;
         break;
