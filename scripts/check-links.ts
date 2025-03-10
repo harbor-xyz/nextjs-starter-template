@@ -261,24 +261,24 @@ console.log(`Found ${links.size} internal links`);
 console.log(`Found ${availableRoutes.size} available routes`);
 
 if (invalidLinks.length > 0) {
-  console.error('\n❌ Error: Invalid links detected');
+  console.error('\nError: Invalid links detected');
   console.error('-----------------------------');
   console.error(`Found ${invalidLinks.length} invalid link${invalidLinks.length > 1 ? 's' : ''}`);
   console.error('\nInvalid Links:');
   invalidLinks.forEach(link => {
-    console.error(`  • ${link.path}`);
+    console.error(`  . ${link.path}`);
     console.error(`    File: ${link.file}`);
     console.error(`    Line: ${link.line}`);
   });
   
   console.error('\nAvailable Routes:');
   Array.from(availableRoutes).sort().forEach(route => {
-    console.error(`  • ${route}`);
+    console.error(` . ${route}`);
   });
   
   console.error('\nPlease fix these invalid links before proceeding.');
   process.exit(1); // Exit with error code
 } else {
-  console.log('\n✅ All links appear to be valid!');
+  console.log('\nAll links appear to be valid!');
   console.log('No issues found in static path analysis.');
 }
