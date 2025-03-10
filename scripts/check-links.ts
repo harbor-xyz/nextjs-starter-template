@@ -15,6 +15,12 @@ interface LinkReference {
   line: number;
 }
 
+interface RouteObject {
+  href: string;
+  line?: number;
+  [key: string]: any;
+}
+
 // Store found links
 const links: Set<LinkReference> = new Set();
 // Store available routes
@@ -51,7 +57,31 @@ componentFiles.forEach(file => {
       sourceType: 'module',
     });
     
-    traverse(ast!, {
+    if (!ast) {
+      console.error(`Failed to parse AST for ${file}`);
+      return;
+    }
+    
+    // Track route arrays/objects defined in the file
+    const localRouteArrays = new Map<string, RouteObject[]>();
+    
+    traverse(ast, {
+      // Find route array definitions (both const declarations and variable assignments)
+      VariableDeclarator(path) {
+        const node = path.node;
+        if (t.isIdentifier(node.id) && t.isArrayExpression(node.init)) {
+          extractRoutesFromArray(node.id.name, node.init, file, localRouteArrays);
+        }
+      },
+      
+      // Handle routes defined directly inside components (like your sidebar example)
+      AssignmentExpression(path) {
+        if (t.isIdentifier(path.node.left) && t.isArrayExpression(path.node.right)) {
+          extractRoutesFromArray(path.node.left.name, path.node.right, file, localRouteArrays);
+        }
+      },
+      
+      // Extract static links from JSX elements
       JSXOpeningElement(nodePath) {
         const node = nodePath.node;
         
@@ -81,17 +111,107 @@ componentFiles.forEach(file => {
                 });
               }
             } else if (t.isJSXExpressionContainer(hrefAttr.value)) {
-              // For expressions like href={`/path/${id}`}
-              console.log(`Dynamic link found in ${file} at line ${node.loc?.start.line || 0}`);
+              // For expressions like href={item.href}
+              const expr = hrefAttr.value.expression;
+              
+              // Check for member expressions like item.href
+              if (t.isMemberExpression(expr) && 
+                  t.isIdentifier(expr.property) && 
+                  expr.property.name === 'href') {
+                
+                // Look for common patterns in .map() iterations
+                const jsxParent = findJSXParent(nodePath);
+                if (jsxParent && t.isCallExpression(jsxParent.parent)) {
+                  const call = jsxParent.parent;
+                  
+                  // Check if it's a .map() call on a known route array
+                  if (t.isMemberExpression(call.callee) && 
+                      t.isIdentifier(call.callee.property) && 
+                      call.callee.property.name === 'map' &&
+                      t.isIdentifier(call.callee.object)) {
+                      
+                    const arrayName = call.callee.object.name;
+                    const routes = localRouteArrays.get(arrayName);
+                    
+                    if (routes) {
+                      // We found a .map() on a known route array, so we can extract the links
+                      console.log(`Found map over route array '${arrayName}' at line ${node.loc?.start.line || 0} in ${file}`);
+                    }
+                  }
+                }
+              } else {
+                // Other dynamic link (template literals, etc.)
+                console.log(`Dynamic link found in ${file} at line ${node.loc?.start.line || 0}`);
+              }
             }
           }
         }
       }
     });
+
+    // Add all the routes found in arrays to our links
+    // Convert Map entries to array for ES5 compatibility
+    Array.from(localRouteArrays.entries()).forEach(([name, routes]) => {
+      routes.forEach(route => {
+        if (route.href && route.href.startsWith('/')) {
+          links.add({
+            path: route.href,
+            file: file,
+            line: route.line || 0
+          });
+        }
+      });
+    });
+    
   } catch (error) {
     console.error(`Error parsing ${file}:`, error);
   }
 });
+
+// Helper function to extract routes from array expressions
+function extractRoutesFromArray(
+  name: string, 
+  arrayExpr: t.ArrayExpression, 
+  file: string, 
+  localRouteArrays: Map<string, RouteObject[]>
+): void {
+  const routes: RouteObject[] = [];
+  
+  for (const element of arrayExpr.elements) {
+    if (element && t.isObjectExpression(element)) {
+      // Look for href property in object
+      const hrefProp = element.properties.find(
+        prop => t.isObjectProperty(prop) && 
+               t.isIdentifier(prop.key) && 
+               prop.key.name === 'href' &&
+               t.isStringLiteral(prop.value)
+      ) as t.ObjectProperty | undefined;
+      
+      if (hrefProp && t.isObjectProperty(hrefProp) && t.isStringLiteral(hrefProp.value)) {
+        const href = hrefProp.value.value;
+        
+        routes.push({
+          href,
+          line: element.loc?.start.line
+        });
+      }
+    }
+  }
+  
+  if (routes.length > 0) {
+    console.log(`Found route array '${name}' with ${routes.length} routes in ${file}`);
+    localRouteArrays.set(name, routes);
+  }
+}
+
+// Helper function to find the JSX parent element (for processing .map() calls)
+function findJSXParent(path: NodePath<t.JSXOpeningElement>): NodePath | null {
+  let current: NodePath | null = path;
+  while (current && !t.isCallExpression(current.parent)) {
+    current = current.parentPath;
+  }
+  return current;
+}
 
 // Validate links against available routes
 const invalidLinks: LinkReference[] = [];
