@@ -27,7 +27,7 @@ const links: Set<LinkReference> = new Set();
 const availableRoutes: Set<string> = new Set();
 
 // Find all TSX files in the project
-const componentFiles: string[] = glob.sync('./app/**/*.tsx');
+const componentFiles: string[] = glob.sync('{./app,./components}/**/*.tsx');
 const pageFiles: string[] = glob.sync('./app/**/{page,layout}.tsx');
 
 // Collect available routes
