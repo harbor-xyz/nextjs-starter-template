@@ -1,8 +1,15 @@
 {
-  "extends": "next/core-web-vitals",
-  "root": true,
-  "ignorePatterns": ["node_modules"],
+  "extends": ["next/core-web-vitals"],
   "parserOptions": {
     "warnOnUnsupportedTypeScriptVersion": false
+  },
+  "rules": {
+    "@next/next/no-typos": "error",
+    "no-use-before-define": ["error", {
+      "functions": true,
+      "classes": true,
+      "variables": true,
+      "allowNamedExports": false
+    }]
   }
 }

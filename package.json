@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit && ts-node --project scripts/tsconfig.json scripts/check-links.ts",
+    "lint": "tsc --noEmit && ts-node --project scripts/tsconfig.json scripts/check-links.ts && next lint",
     "test": "vitest",
     "generate": "ts-node --project scripts/tsconfig.json scripts/generate.ts",
     "check-links": "ts-node --project scripts/tsconfig.json scripts/check-links.ts"
