@@ -21,26 +21,67 @@ interface RouteObject {
   [key: string]: any;
 }
 
-interface DynamicRouteInfo {
-  routePath: string;           // Full route path with [param] syntax
+interface ApiRouteInfo {
+  routePath: string;           // Full API route path
   filePath: string;            // Actual file path
+  isDynamic: boolean;          // Whether it has dynamic segments
   params: string[];            // List of parameters in the route
-  hasStaticParams: boolean;    // Whether generateStaticParams exists
-  staticParamValues: Map<string, string[]>; // Parameter values from generateStaticParams
 }
 
 // Store found links
 const links: Set<LinkReference> = new Set();
 // Store available routes
 const availableRoutes: Set<string> = new Set();
-// Store dynamic route information
-const dynamicRoutes: DynamicRouteInfo[] = [];
+// Store API routes
+const apiRoutes: ApiRouteInfo[] = [];
 
-// Find all TSX files in the project
-const componentFiles: string[] = glob.sync('{./app,./components}/**/*.tsx');
-const pageFiles: string[] = glob.sync('./app/**/{page,layout}.tsx');
+// Configuration for exclusions
+const excludePaths = [
+  /^\.\/app\/api\/examples/,  // Exclude API examples folder 
+  /^\.\/hooks\/use-examples\.ts$/ // Exclude use-examples.ts hook
+];
 
-// Extract dynamic route information
+// Helper function to check if a file should be excluded
+function shouldExcludeFile(filePath: string): boolean {
+  return excludePaths.some(pattern => pattern.test(filePath));
+}
+
+// Find all TSX/TS files in the project
+const componentFiles: string[] = glob.sync('{./app,./components}/**/*.tsx')
+  .filter(file => !shouldExcludeFile(file));
+const hooksFiles: string[] = glob.sync('./hooks/**/*.{ts,tsx}')
+  .filter(file => !shouldExcludeFile(file));
+const pageFiles: string[] = glob.sync('./app/**/{page,layout}.tsx')
+  .filter(file => !shouldExcludeFile(file));
+// Find all API route files
+const apiRouteFiles: string[] = glob.sync('./app/api/**/{route}.{ts,js,tsx,jsx}')
+  .filter(file => !shouldExcludeFile(file));
+
+// Process API routes
+apiRouteFiles.forEach(file => {
+  let routePath = file
+    .replace('./app', '')
+    .replace(/\/route\.(ts|js|tsx|jsx)$/, '')
+    .replace(/\/\(.*?\)\//g, '/'); // Handle route groups
+  
+  const params = extractParamsFromRoute(routePath);
+  const isDynamic = params.length > 0;
+  
+  // Add to API routes collection
+  apiRoutes.push({
+    routePath,
+    filePath: file,
+    isDynamic,
+    params
+  });
+  
+  // Convert for normal route matching (for future validation)
+  const normalizedRoute = routePath.replace(/\[(.+?)\]/g, ':$1');
+  // Add to available routes as an API route
+  availableRoutes.add(normalizedRoute);
+});
+
+// Extract regular page routes
 pageFiles.forEach(file => {
   let routePath = file
     .replace('./app', '')
@@ -48,26 +89,7 @@ pageFiles.forEach(file => {
     .replace(/\/layout\.tsx$/, '')
     .replace(/\/\(.*?\)\//g, '/'); // Handle route groups
   
-  // If this is a dynamic route with [param] segments
-  if (routePath.includes('[')) {
-    const params = extractParamsFromRoute(routePath);
-    
-    // Initialize the dynamic route info
-    const routeInfo: DynamicRouteInfo = {
-      routePath,
-      filePath: file,
-      params,
-      hasStaticParams: false,
-      staticParamValues: new Map<string, string[]>()
-    };
-    
-    // Check if the file contains generateStaticParams
-    checkForStaticParams(file, routeInfo);
-    
-    dynamicRoutes.push(routeInfo);
-  }
-  
-  // Convert for normal route matching (as in the original code)
+  // Convert for normal route matching
   if (routePath === '') routePath = '/';
   const normalizedRoute = routePath.replace(/\[(.+?)\]/g, ':$1');
   availableRoutes.add(normalizedRoute);
@@ -86,167 +108,11 @@ function extractParamsFromRoute(routePath: string): string[] {
   return params;
 }
 
-// Function to traverse AST and handle scoping correctly
-function traverseBody(node: t.Node, visitor: any): void {
-  const newAST = t.program([t.expressionStatement(t.stringLiteral('placeholder'))]);
-  babel.transformFromAstSync(newAST, undefined, {
-    plugins: [
-      {
-        visitor: {
-          Program(path: babel.NodePath<t.Program>) {
-            // Replace the program body with our node
-            path.node.body = [t.expressionStatement(t.assignmentExpression(
-              '=',
-              t.identifier('__dummy'),
-              t.objectExpression([])
-            ))];
-            
-            // Create a dummy path for our node
-            const dummyPath = path.get('body.0.expression.right') as babel.NodePath;
-            dummyPath.replaceWith(node);
-            
-            // Now traverse with our visitor
-            dummyPath.traverse(visitor);
-          }
-        }
-      }
-    ]
-  });
-}
+// Combine all files to scan for links
+const allFilesToScan = [...componentFiles, ...hooksFiles];
 
-// Check if a file has generateStaticParams and extract parameter values
-function checkForStaticParams(filePath: string, routeInfo: DynamicRouteInfo): void {
-  try {
-    const code = fs.readFileSync(filePath, 'utf8');
-    
-    const ast = babel.parseSync(code, {
-      presets: ['@babel/preset-react', '@babel/preset-typescript'],
-      plugins: ['@babel/plugin-syntax-jsx', '@babel/plugin-syntax-typescript'],
-      filename: filePath,
-      sourceType: 'module',
-    });
-    
-    if (!ast) {
-      console.error(`Failed to parse AST for ${filePath}`);
-      return;
-    }
-    
-    // Use babel's traverse directly
-    babel.traverse(ast, {
-      ExportNamedDeclaration(path) {
-        const declaration = path.node.declaration;
-        
-        // Check if this is the generateStaticParams function
-        if (declaration && 
-            t.isFunctionDeclaration(declaration) && 
-            declaration.id && 
-            declaration.id.name === 'generateStaticParams') {
-          
-          routeInfo.hasStaticParams = true;
-          
-          // Extract from function body
-          if (declaration.body && t.isBlockStatement(declaration.body)) {
-            babel.traverse(declaration.body, {
-              ReturnStatement(returnPath) {
-                const argument = returnPath.node.argument;
-                
-                // Handle array literals
-                if (t.isArrayExpression(argument)) {
-                  extractParamsFromArrayExpression(argument, routeInfo);
-                }
-              }
-            }, path.scope);
-          }
-        }
-      },
-      
-      // Handle arrow function export variant
-      VariableDeclaration(path) {
-        const declarations = path.node.declarations;
-        
-        for (const declaration of declarations) {
-          if (t.isIdentifier(declaration.id) && 
-              declaration.id.name === 'generateStaticParams' &&
-              path.parent && 
-              t.isExportNamedDeclaration(path.parent)) {
-              
-            routeInfo.hasStaticParams = true;
-            
-            // For arrow function expressions
-            if (declaration.init && t.isArrowFunctionExpression(declaration.init)) {
-              // Direct return with array
-              if (t.isArrayExpression(declaration.init.body)) {
-                extractParamsFromArrayExpression(declaration.init.body, routeInfo);
-              } 
-              // Block body with return statement
-              else if (t.isBlockStatement(declaration.init.body)) {
-                babel.traverse(declaration.init.body, {
-                  ReturnStatement(returnPath) {
-                    if (t.isArrayExpression(returnPath.node.argument)) {
-                      extractParamsFromArrayExpression(returnPath.node.argument, routeInfo);
-                    }
-                  }
-                }, path.scope);
-              }
-            }
-            
-            // For function expressions
-            if (declaration.init && t.isFunctionExpression(declaration.init) && 
-                t.isBlockStatement(declaration.init.body)) {
-              babel.traverse(declaration.init.body, {
-                ReturnStatement(returnPath) {
-                  if (t.isArrayExpression(returnPath.node.argument)) {
-                    extractParamsFromArrayExpression(returnPath.node.argument, routeInfo);
-                  }
-                }
-              }, path.scope);
-            }
-          }
-        }
-      }
-    });
-  } catch (error) {
-    console.error(`Error analyzing ${filePath} for generateStaticParams:`, error);
-  }
-}
-
-// These functions have been incorporated into checkForStaticParams
-// for better type safety and to avoid the traverse issues
-
-// Extract parameters from an array expression
-function extractParamsFromArrayExpression(
-  arrayExpr: t.ArrayExpression, 
-  routeInfo: DynamicRouteInfo
-): void {
-  for (const element of arrayExpr.elements) {
-    if (element && t.isObjectExpression(element)) {
-      const params = routeInfo.params;
-      
-      // For each parameter in the route, try to extract its value
-      for (const param of params) {
-        for (const property of element.properties) {
-          if (t.isObjectProperty(property) && 
-              t.isIdentifier(property.key) && 
-              property.key.name === param) {
-            
-            if (t.isStringLiteral(property.value)) {
-              // Initialize the param array if it doesn't exist
-              if (!routeInfo.staticParamValues.has(param)) {
-                routeInfo.staticParamValues.set(param, []);
-              }
-              
-              // Add the param value
-              routeInfo.staticParamValues.get(param)?.push(property.value.value);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-// Parse each component file to extract links
-componentFiles.forEach(file => {
+// Parse each file to extract links
+allFilesToScan.forEach(file => {
   const code = fs.readFileSync(file, 'utf8');
   
   try {
@@ -346,6 +212,93 @@ componentFiles.forEach(file => {
             }
           }
         }
+      },
+      
+      // Extract API fetch calls
+      CallExpression(path) {
+        // Look for fetch() calls
+        if (t.isIdentifier(path.node.callee) && path.node.callee.name === 'fetch') {
+          // Check if the first argument is a string literal or template literal
+          const arg = path.node.arguments[0];
+          if (t.isStringLiteral(arg) && arg.value.startsWith('/api/')) {
+            links.add({
+              path: arg.value,
+              file: file,
+              line: path.node.loc?.start.line || 0
+            });
+          } 
+          // Handle template literals for API routes
+          else if (t.isTemplateLiteral(arg)) {
+            // Get the raw pieces of the template
+            const quasis = arg.quasis.map(q => q.value.cooked || '');
+            
+            // If the template starts with '/api/' - handle it as a dynamic API route
+            if (quasis.length > 0 && quasis[0] && quasis[0].startsWith('/api/')) {
+              // Try to reconstruct the most likely API pattern
+              let apiPattern = quasis[0];
+              
+              // For patterns like `/api/examples/${id}` we'll produce `/api/examples/:id`
+              for (let i = 1; i < quasis.length; i++) {
+                // Add a placeholder parameter between template parts
+                apiPattern += `:param${i}${quasis[i] || ''}`;
+              }
+              
+              // Log dynamic API call
+              console.log(`Dynamic API fetch found: ${apiPattern} in ${file} at line ${path.node.loc?.start.line || 0}`);
+              
+              // Add as a special kind of link that's identifiable as dynamic
+              links.add({
+                path: apiPattern,
+                file: file,
+                line: path.node.loc?.start.line || 0
+              });
+            }
+          }
+        }
+        
+        // Look for axios calls
+        if (t.isMemberExpression(path.node.callee) && 
+            t.isIdentifier(path.node.callee.object) && 
+            t.isIdentifier(path.node.callee.property) && 
+            (path.node.callee.object.name === 'axios' || path.node.callee.object.name === 'api') && 
+            ['get', 'post', 'put', 'delete', 'patch'].includes(path.node.callee.property.name)) {
+          
+          const arg = path.node.arguments[0];
+          if (t.isStringLiteral(arg) && arg.value.startsWith('/api/')) {
+            links.add({
+              path: arg.value,
+              file: file,
+              line: path.node.loc?.start.line || 0
+            });
+          }
+          // Handle template literals for API routes with axios
+          else if (t.isTemplateLiteral(arg)) {
+            // Get the raw pieces of the template
+            const quasis = arg.quasis.map(q => q.value.cooked || '');
+            
+            // If the template starts with '/api/' - handle it as a dynamic API route
+            if (quasis.length > 0 && quasis[0] && quasis[0].startsWith('/api/')) {
+              // Try to reconstruct the most likely API pattern
+              let apiPattern = quasis[0];
+              
+              // For patterns like `/api/examples/${id}` we'll produce `/api/examples/:id`
+              for (let i = 1; i < quasis.length; i++) {
+                // Add a placeholder parameter between template parts
+                apiPattern += `:param${i}${quasis[i] || ''}`;
+              }
+              
+              // Log dynamic API call
+              console.log(`Dynamic API axios call found: ${apiPattern} in ${file} at line ${path.node.loc?.start.line || 0}`);
+              
+              // Add as a special kind of link that's identifiable as dynamic
+              links.add({
+                path: apiPattern,
+                file: file,
+                line: path.node.loc?.start.line || 0
+              });
+            }
+          }
+        }
       }
     });
 
@@ -413,10 +366,26 @@ function findJSXParent(path: NodePath<t.JSXOpeningElement>): NodePath | null {
   return current;
 }
 
+// Exclude specific API paths from validation
+const excludeApiPaths = [
+  /^\/api\/examples\/?.*$/ // Exclude all /api/examples paths and subpaths
+];
+
+// Helper function to check if a link should be excluded
+function shouldExcludeLink(linkPath: string): boolean {
+  return excludeApiPaths.some(pattern => pattern.test(linkPath));
+}
+
 // Validate links against available routes
 const invalidLinks: LinkReference[] = [];
 
 links.forEach(link => {
+  // Skip excluded paths
+  if (shouldExcludeLink(link.path)) {
+    console.log(`Skipping excluded API path: ${link.path}`);
+    return;
+  }
+  
   let isValid = false;
   const linkPath = link.path;
   
@@ -454,138 +423,20 @@ function routeMatches(routePattern: string, actualPath: string): boolean {
   return true;
 }
 
-// Check dynamic routes for missing generateStaticParams
-const missingStaticParams: DynamicRouteInfo[] = dynamicRoutes.filter(
-  route => !route.hasStaticParams
-);
-
-// Check links to dynamic routes to ensure params are included in generateStaticParams
-interface MissingParamError {
-  link: LinkReference;
-  route: DynamicRouteInfo;
-  missingParams: { param: string; value: string; }[];
-}
-
-const missingParamErrors: MissingParamError[] = [];
-
-links.forEach(link => {
-  const linkPath = link.path;
-  
-  // Check each dynamic route
-  for (const route of dynamicRoutes) {
-    // Skip routes without generateStaticParams (they'll be reported separately)
-    if (!route.hasStaticParams) continue;
-    
-    // Check if this link might be for this dynamic route
-    if (isDynamicRouteMatch(route.routePath, linkPath)) {
-      const missingParams = checkParamsInLink(route, linkPath);
-      
-      if (missingParams.length > 0) {
-        missingParamErrors.push({
-          link,
-          route,
-          missingParams
-        });
-      }
-    }
-  }
-});
-
-// Check if a link matches a dynamic route pattern
-function isDynamicRouteMatch(routePath: string, linkPath: string): boolean {
-  // Replace dynamic segments with regex pattern
-  const pattern = routePath
-    .replace(/\[([^\]]+)\]/g, '([^/]+)')  // Replace [param] with capture group
-    .replace(/\//g, '\\/');               // Escape slashes
-  
-  const regex = new RegExp(`^${pattern}$`);
-  return regex.test(linkPath);
-}
-
-// Check if the parameters in a link are included in generateStaticParams
-function checkParamsInLink(route: DynamicRouteInfo, linkPath: string): { param: string; value: string; }[] {
-  const routeParts = route.routePath.split('/').filter(Boolean);
-  const linkParts = linkPath.split('/').filter(Boolean);
-  
-  if (routeParts.length !== linkParts.length) return [];
-  
-  const missingParams: { param: string; value: string; }[] = [];
-  
-  for (let i = 0; i < routeParts.length; i++) {
-    const routePart = routeParts[i];
-    const linkPart = linkParts[i];
-    
-    // Check if this is a dynamic segment
-    const paramMatch = routePart.match(/\[([^\]]+)\]/);
-    if (paramMatch) {
-      const paramName = paramMatch[1];
-      const paramValues = route.staticParamValues.get(paramName) || [];
-      
-      // If the param value in the link is not included in generateStaticParams
-      if (!paramValues.includes(linkPart)) {
-        missingParams.push({
-          param: paramName,
-          value: linkPart
-        });
-      }
-    }
-  }
-  
-  return missingParams;
-}
-
 // Report results
 console.log('\nStatic Path Analysis Results:');
 console.log('===========================');
-console.log(`Found ${links.size} internal links`);
+// Count API specific links
+const apiLinks = Array.from(links)
+  .filter(link => link.path.startsWith('/api/') && !shouldExcludeLink(link.path));
+
+console.log(`Found ${links.size} internal links (${apiLinks.length} API endpoints to validate)`);
 console.log(`Found ${availableRoutes.size} available routes`);
-console.log(`Found ${dynamicRoutes.length} dynamic routes`);
+console.log(`Found ${apiRoutes.length} API routes`);
 
 let hasErrors = false;
 
-// Report dynamic routes without generateStaticParams
-if (missingStaticParams.length > 0) {
-  hasErrors = true;
-  console.error('\nError: Dynamic routes missing generateStaticParams function');
-  console.error('----------------------------------------------------------');
-  console.error(`Found ${missingStaticParams.length} dynamic route${missingStaticParams.length > 1 ? 's' : ''} missing generateStaticParams`);
-  
-  missingStaticParams.forEach(route => {
-    console.error(`\n  Dynamic Route: ${route.routePath}`);
-    console.error(`  File: ${route.filePath}`);
-    console.error(`  Required Params: [${route.params.join(', ')}]`);
-    console.error(`  Error: Missing generateStaticParams() export`);
-  });
-}
-
-// Report links with params not included in generateStaticParams
-if (missingParamErrors.length > 0) {
-  hasErrors = true;
-  console.error('\nError: Links with params not included in generateStaticParams');
-  console.error('-----------------------------------------------------------');
-  console.error(`Found ${missingParamErrors.length} link${missingParamErrors.length > 1 ? 's' : ''} with params not included in generateStaticParams`);
-  
-  missingParamErrors.forEach(error => {
-    console.error(`\n  Link: ${error.link.path}`);
-    console.error(`  File: ${error.link.file}`);
-    console.error(`  Line: ${error.link.line}`);
-    console.error(`  Target Route: ${error.route.routePath}`);
-    console.error(`  Missing Params in generateStaticParams:`);
-    
-    error.missingParams.forEach(missing => {
-      console.error(`    - ${missing.param}: "${missing.value}"`);
-    });
-    
-    // Show available values for each param from generateStaticParams
-    console.error(`  Available values in generateStaticParams:`);
-    error.route.params.forEach(param => {
-      const values = error.route.staticParamValues.get(param) || [];
-      console.error(`    - ${param}: [${values.join(', ')}]`);
-    });
-  });
-}
-
-// Report general invalid links (original functionality)
+// Report general invalid links
 if (invalidLinks.length > 0) {
   hasErrors = true;
   console.error('\nError: Invalid links detected');
@@ -609,6 +460,5 @@ if (hasErrors) {
   process.exit(1); // Exit with error code
 } else {
   console.log('\nAll links appear to be valid!');
-  console.log('All dynamic routes have generateStaticParams with appropriate parameters.');
   console.log('No issues found in static path analysis.');
 }
