@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npx serve@latest out",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit && ts-node --project scripts/tsconfig.json scripts/check-links.ts && next lint",
