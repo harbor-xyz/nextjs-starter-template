@@ -1,6 +1,6 @@
 'use client'
 
-import { createCheckoutSession } from '@/lib/stripe'
+import { createCheckoutSession } from '@/lib/stripe/client'
 import { useRouter } from 'next/navigation'
 
 export default function Page() {
@@ -11,7 +11,6 @@ export default function Page() {
       productName: 'Pro Plan',
       productDescription: 'This is a pro plan',
       productPriceInCents: 2000,
-      mock: window.self !== window.top,
     })
     if (url) {
       router.push(url)

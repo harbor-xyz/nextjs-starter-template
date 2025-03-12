@@ -2,6 +2,7 @@
 
 import Stripe from 'stripe'
 import { headers } from 'next/headers'
+import { CheckoutParamsServer } from './type'
 
 function getEnvVariable(key: string): string {
   const value = process.env[key]
@@ -21,14 +22,7 @@ try {
   console.error("Failed to initialize Stripe:", error)
 }
 
-type CheckoutParams = {
-  productName: string
-  productPriceInCents: number
-  productDescription: string,
-  mock: boolean,
-}
-
-export async function createCheckoutSession(params: CheckoutParams) {
+export async function createCheckoutSessionServer(params: CheckoutParamsServer) {
   const { productName, productPriceInCents, productDescription, mock } = params
   if (mock) return '/payment-success'
 

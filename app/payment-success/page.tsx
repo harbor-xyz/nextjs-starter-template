@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { retrieveCheckoutSession } from "@/lib/stripe";
+import { retrieveCheckoutSession } from "@/lib/stripe/server";
 
 export default function Page() {
   const searchParams = useSearchParams();
