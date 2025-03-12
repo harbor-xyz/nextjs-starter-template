@@ -5,7 +5,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
     dirs: ['app']
   },
-  images: { unoptimized: true }
+  images: { unoptimized: true },
+  experimental: {
+    serverComponentsExternalPackages : ['@electric-sql/pglite'],
+  },
 };
 
 module.exports = nextConfig;
