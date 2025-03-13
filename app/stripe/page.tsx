@@ -1,6 +1,6 @@
 'use client'
 
-import { createCheckoutSession } from '@/lib/stripe/client'
+import { createCheckoutSession } from '@/lib/stripe'
 import { useRouter } from 'next/navigation'
 
 export default function Page() {
