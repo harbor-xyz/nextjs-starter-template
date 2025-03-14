@@ -1,24 +1,22 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { retrieveCheckoutSession } from "@/lib/stripe";
 
 export default function Page() {
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
-
   const [status, setStatus] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(document.location.search)
+    const sessionId = searchParams.get('session_id')
     if (sessionId) {
       retrieveCheckoutSession(sessionId).then((data) => {
         setStatus(data.status)
         setPaymentStatus(data.paymentStatus)
       });
     }
-  }, [sessionId]);
+  }, []);
 
   return (
     <div
