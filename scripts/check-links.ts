@@ -54,7 +54,7 @@ const hooksFiles: string[] = glob.sync('./hooks/**/*.{ts,tsx}')
 const pageFiles: string[] = glob.sync('./app/**/{page,layout}.tsx')
   .filter(file => !shouldExcludeFile(file));
 // Find all API route files
-const apiRouteFiles: string[] = glob.sync('./app/api/**/{route}.{ts,js,tsx,jsx}')
+const apiRouteFiles: string[] = glob.sync('./app/api/**/route.{ts,js,tsx,jsx}')
   .filter(file => !shouldExcludeFile(file));
 
 // Process API routes
